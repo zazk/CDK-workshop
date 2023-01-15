@@ -5,6 +5,7 @@ import * as lambda from "@aws-cdk/aws-lambda";
 import * as dynamodb from "@aws-cdk/aws-dynamodb";
 import * as apigw from "@aws-cdk/aws-apigateway";
 import path = require("path");
+import { Cors } from "@aws-cdk/aws-apigateway";
 
 export class CdkTestStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -28,7 +29,18 @@ export class CdkTestStack extends cdk.Stack {
     table.grantReadWriteData(saveTaskFunction);
 
     // create the API Gateway with one method and path
-    const api = new apigw.RestApi(this, "task-api");
+    const api = new apigw.RestApi(this, "task-api", {
+      defaultCorsPreflightOptions: {
+        allowHeaders: [
+          "Content-Type",
+          "X-Amz-Date",
+          "Authorization",
+          "X-Api-Key",
+        ],
+        allowMethods: ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
+        allowOrigins: ["*"],
+      },
+    });
 
     api.root
       .resourceForPath("task")
