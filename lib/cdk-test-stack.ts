@@ -30,16 +30,7 @@ export class CdkTestStack extends cdk.Stack {
 
     // create the API Gateway with one method and path
     const api = new apigw.RestApi(this, "task-api", {
-      defaultCorsPreflightOptions: {
-        allowHeaders: [
-          "Content-Type",
-          "X-Amz-Date",
-          "Authorization",
-          "X-Api-Key",
-        ],
-        allowMethods: ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
-        allowOrigins: ["*"],
-      },
+      description: 'task-api',
     });
 
     api.root
