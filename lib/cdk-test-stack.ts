@@ -15,48 +15,61 @@ export class CdkTestStack extends cdk.Stack {
       partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
     });
 
-    const saveTaskFunction = new lambda.Function(this, "DynamoLambdaHandler", {
-      runtime: lambda.Runtime.NODEJS_16_X,
-      code: lambda.Code.fromAsset(path.resolve(__dirname, "lambdas")),
-      handler: "handler.createTask",
-      timeout: cdk.Duration.seconds(30),
-      environment: {
-        TASKS_TABLE_NAME: table.tableName,
-      },
-    });
-
-    if (saveTaskFunction.timeout) {
-      new cw.Alarm(this, "AlarmTimeOutSaveTask", {
-        metric: saveTaskFunction.metricDuration().with({
-          statistic: "Maximum",
-        }),
-        alarmName: "Lambda SaveTask Timeout",
-        threshold: saveTaskFunction.timeout.toMilliseconds(),
-        evaluationPeriods: 1,
-      });
-    }
-    table.grantReadWriteData(saveTaskFunction);
-
     const createTaskFunction = new LambdaConstruct(
       this,
       "CreateTaskLambda",
       "create-task.createHandler",
       table
     );
-    table.grantReadWriteData(createTaskFunction.lambda);
+    table.grantWriteData(createTaskFunction.lambda);
+
+    if (createTaskFunction.lambda.timeout) {
+      new cw.Alarm(this, "AlarmTimeOutSaveTask", {
+        metric: createTaskFunction.lambda.metricDuration().with({
+          statistic: "Maximum",
+        }),
+        alarmName: "Lambda SaveTask Timeout",
+        threshold: createTaskFunction.lambda.timeout.toMilliseconds(),
+        evaluationPeriods: 1,
+      });
+    }
+
+    const listTaskFunction = new LambdaConstruct(
+      this,
+      "ListTaskLambda",
+      "list-task.listHandler",
+      table
+    );
+    table.grantReadData(listTaskFunction.lambda);
+
+    const updateTaskFunction = new LambdaConstruct(
+      this,
+      "UpdateTaskLambda",
+      "update-task.updateHandler",
+      table
+    );
+    table.grantReadWriteData(updateTaskFunction.lambda);
 
     const api = new apigw.RestApi(this, "task-api", {
       description: "task-api",
+      defaultCorsPreflightOptions: {
+        allowMethods: ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
+        allowOrigins: ["*"],
+      },
     });
 
-    api.root
-      .resourceForPath("task")
-      .addMethod("POST", new apigw.LambdaIntegration(saveTaskFunction));
-    api.root
-      .addResource("todo")
-      .addMethod(
-        "POST",
-        new apigw.LambdaIntegration(createTaskFunction.lambda)
-      );
+    const todoResource = api.root.addResource("todo");
+    todoResource.addMethod(
+      "POST",
+      new apigw.LambdaIntegration(createTaskFunction.lambda)
+    );
+    todoResource.addMethod(
+      "GET",
+      new apigw.LambdaIntegration(listTaskFunction.lambda)
+    );
+    todoResource.addMethod(
+      "PUT",
+      new apigw.LambdaIntegration(updateTaskFunction.lambda)
+    );
   }
 }
