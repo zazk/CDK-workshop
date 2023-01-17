@@ -12,6 +12,19 @@
                     "stage": "dev"
                 }
             ]
+        },
+        {
+            "type": "cloudformation",
+            "title": "TodoListStack",
+            "timeOffsetInMs": 0,
+            "awsProfile": "default",
+            "stacks": [
+                {
+                    "region": "us-east-1",
+                    "stackName": "todo-list-stack",
+                    "stage": "dev"
+                }
+            ]
         }
     ]
 }
