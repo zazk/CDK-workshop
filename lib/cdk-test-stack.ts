@@ -52,10 +52,6 @@ export class CdkTestStack extends cdk.Stack {
 
     const api = new apigw.RestApi(this, "task-api", {
       description: "task-api",
-      defaultCorsPreflightOptions: {
-        allowMethods: ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
-        allowOrigins: ["*"],
-      },
     });
 
     const todoResource = api.root.addResource("todo");
