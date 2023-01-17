@@ -1,6 +1,7 @@
 import * as cdk from "@aws-cdk/core";
 import * as lambda from "@aws-cdk/aws-lambda";
 import * as dynamodb from "@aws-cdk/aws-dynamodb";
+import * as cw from '@aws-cdk/aws-cloudwatch';
 
 export class LambdaConstruct extends cdk.Construct {
   public lambda: lambda.Function;
@@ -22,5 +23,20 @@ export class LambdaConstruct extends cdk.Construct {
         TASKS_TABLE_NAME: table.tableName,
       },
     });
+  }
+
+  addAlarm(alarmName: string) {
+    if (this.lambda.timeout) {
+      new cw.Alarm(this, 'AlarmTimeOutSaveTask', {
+        metric: this.lambda.metricDuration().with({
+          statistic: 'Maximum',
+        }),
+        alarmName,
+        threshold: this.lambda.timeout.toMilliseconds(),
+        evaluationPeriods: 1,
+      });
+    }
+
+    return this;
   }
 }

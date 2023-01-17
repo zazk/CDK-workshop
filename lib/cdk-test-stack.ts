@@ -1,11 +1,7 @@
 import { LambdaConstruct } from "./constructs/lambda-construct";
 import * as cdk from "@aws-cdk/core";
-
-import * as lambda from "@aws-cdk/aws-lambda";
 import * as dynamodb from "@aws-cdk/aws-dynamodb";
 import * as apigw from "@aws-cdk/aws-apigateway";
-import * as cw from "@aws-cdk/aws-cloudwatch";
-import path = require("path");
 
 export class CdkTestStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -15,27 +11,12 @@ export class CdkTestStack extends cdk.Stack {
       partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
     });
 
-    const saveTaskFunction = new lambda.Function(this, "DynamoLambdaHandler", {
-      runtime: lambda.Runtime.NODEJS_16_X,
-      code: lambda.Code.fromAsset(path.resolve(__dirname, "lambdas")),
-      handler: "handler.createTask",
-      timeout: cdk.Duration.seconds(30),
-      environment: {
-        TASKS_TABLE_NAME: table.tableName,
-      },
-    });
-
-    if (saveTaskFunction.timeout) {
-      new cw.Alarm(this, "AlarmTimeOutSaveTask", {
-        metric: saveTaskFunction.metricDuration().with({
-          statistic: "Maximum",
-        }),
-        alarmName: "Lambda SaveTask Timeout",
-        threshold: saveTaskFunction.timeout.toMilliseconds(),
-        evaluationPeriods: 1,
-      });
-    }
-    table.grantReadWriteData(saveTaskFunction);
+    const optionsHandlerFunction = new LambdaConstruct(
+      this,
+      'OptionsHandlerLambda',
+      'get-task.optionsHandler',
+      table
+    );
 
     const createTaskFunction = new LambdaConstruct(
       this,
@@ -43,20 +24,82 @@ export class CdkTestStack extends cdk.Stack {
       "create-task.createHandler",
       table
     );
-    table.grantReadWriteData(createTaskFunction.lambda);
+    table.grantWriteData(createTaskFunction.lambda);
 
-    const api = new apigw.RestApi(this, "task-api", {
-      description: "task-api",
+    const listTaskFunction = new LambdaConstruct(
+      this,
+      "ListTaskLambda",
+      "list-task.listHandler",
+      table
+    );
+    table.grantReadData(listTaskFunction.lambda);
+
+    const updateTaskFunction = new LambdaConstruct(
+      this,
+      "UpdateTaskLambda",
+      "update-task.updateHandler",
+      table
+    );
+    table.grantReadWriteData(updateTaskFunction.lambda);
+
+    const getTaskFunction = new LambdaConstruct(
+      this,
+      'getTaskLambda',
+      'get-task.getTaskHandler',
+      table
+    );
+
+    table.grantReadWriteData(getTaskFunction.lambda);
+
+    const deleteTaskFunction = new LambdaConstruct(
+      this,
+      'deleteTaskLambda',
+      'delete-task.deleteTaskHandler',
+      table
+    );
+
+    table.grantReadWriteData(deleteTaskFunction.lambda);
+
+    const api = new apigw.RestApi(this, 'task-api', {
+      description: 'task-api',
     });
 
-    api.root
-      .resourceForPath("task")
-      .addMethod("POST", new apigw.LambdaIntegration(saveTaskFunction));
-    api.root
-      .addResource("todo")
-      .addMethod(
-        "POST",
-        new apigw.LambdaIntegration(createTaskFunction.lambda)
-      );
+    const todoResource = api.root.addResource('todo');
+
+    todoResource.addMethod(
+      'GET',
+      new apigw.LambdaIntegration(listTaskFunction.lambda)
+    );
+
+    todoResource.addMethod(
+      'POST',
+      new apigw.LambdaIntegration(createTaskFunction.lambda)
+    );
+    todoResource.addMethod(
+      'OPTIONS',
+      new apigw.LambdaIntegration(optionsHandlerFunction.lambda)
+    );
+
+    const todoItemResource = todoResource.addResource('{id}');
+
+    todoItemResource.addMethod(
+      'GET',
+      new apigw.LambdaIntegration(getTaskFunction.lambda)
+    );
+
+    todoItemResource.addMethod(
+      'PUT',
+      new apigw.LambdaIntegration(updateTaskFunction.lambda)
+    );
+
+    todoItemResource.addMethod(
+      'DELETE',
+      new apigw.LambdaIntegration(deleteTaskFunction.lambda)
+    );
+
+    todoItemResource.addMethod(
+      'OPTIONS',
+      new apigw.LambdaIntegration(optionsHandlerFunction.lambda)
+    );
   }
 }
