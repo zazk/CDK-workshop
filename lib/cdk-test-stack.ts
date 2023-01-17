@@ -29,7 +29,7 @@ export class CdkTestStack extends cdk.Stack {
     const listTaskFunction = new LambdaConstruct(
       this,
       "ListTaskLambda",
-      "list-task.listHandler",
+      "list-task.listTaskHandler",
       table
     );
     table.grantReadData(listTaskFunction.lambda);
@@ -37,14 +37,14 @@ export class CdkTestStack extends cdk.Stack {
     const updateTaskFunction = new LambdaConstruct(
       this,
       "UpdateTaskLambda",
-      "update-task.updateHandler",
+      "update-task.updateTaskHandler",
       table
     );
     table.grantReadWriteData(updateTaskFunction.lambda);
 
     const getTaskFunction = new LambdaConstruct(
       this,
-      'getTaskLambda',
+      'GetTaskLambda',
       'get-task.getTaskHandler',
       table
     );
@@ -53,7 +53,7 @@ export class CdkTestStack extends cdk.Stack {
 
     const deleteTaskFunction = new LambdaConstruct(
       this,
-      'deleteTaskLambda',
+      'DeleteTaskLambda',
       'delete-task.deleteTaskHandler',
       table
     );
